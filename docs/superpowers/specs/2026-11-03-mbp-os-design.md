@@ -1,6 +1,6 @@
 # mbp-os — OS su misura per il MacBook Pro 2012 con schermo rotto
 
-Stato: **in attesa di approvazione** di Daniele. Data: 2026-11-03.
+Stato: **approvata** (Daniele, 2026-11-03: "ok"). Data: 2026-11-03.
 Fratelli: `air-os` (MacBook Air 2017) e `nas-os` (Asustor AS6702T). Stessa famiglia: immagine bootc firmata, repo pubblico + repo privato di configurazione.
 
 ## 1. Perché
