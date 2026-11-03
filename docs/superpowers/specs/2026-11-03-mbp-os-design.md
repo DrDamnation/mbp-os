@@ -49,7 +49,7 @@ Da note (Ubuntu, agosto 2026) — **da riverificare dal vivo prima del piano** (
 | Approccio | Immagine bootc come air-os/nas-os | Daniele |
 | Base | `ghcr.io/ublue-os/base-main:44` + `kmod-wl` da `ghcr.io/ublue-os/akmods:main-44`, come air-os; repo autonomo (non `FROM air-os`, che contiene cose solo dell'Air) | Claude |
 | Desktop modo `pc` | niri + DMS + greetd come air-os | Claude |
-| Cifratura | Nessuna (password all'avvio = server irraggiungibile) | Claude |
+| Cifratura | Nessuna: il server deve ripartire da solo dopo ogni riavvio; niente TPM e Wi-Fi solo `wl` rendono impraticabile lo sblocco automatico | Daniele (2026-11-03, scelta 1 tra "niente" e "chiavetta USB attaccata") |
 | Disco | Intero disco interno a mbp-os, Ubuntu cancellata, dopo copia fuori dei dati utili | Claude, da confermare dopo aver visto il disco |
 | Nome | `mbp-os` (pubblico) + `mbp-config` (privato) | Claude |
 
@@ -92,6 +92,8 @@ Scanner anti-segreti e dati personali **identico** a quello di air-os/nas-os (`t
 - Come air-os: aggiornamento manuale (`ujust update` / `bootc upgrade`), rollback con riavvio. *(Scelta Claude: per un serverino si potrebbe accendere il timer automatico; per ora spento, come air-os.)*
 
 ## 7. Installazione
+
+- Durante l'installazione Daniele può collegare un monitor HDMI: serve a vedere cosa succede, ma l'installazione resta senza domande.
 
 - ISO Anaconda dall'immagine (bootc-image-builder, runner `ubuntu-24.04`, rootfs btrfs dichiarato: lezioni air-os).
 - Kickstart **completamente automatico**: disco interno intero, nessuna schermata. Protezione: il %pre controlla il modello DMI (`MacBookPro10,2`) e il disco atteso, altrimenti si ferma senza toccare niente.
