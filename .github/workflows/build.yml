@@ -52,6 +52,7 @@ jobs:
           bash tests/modo.sh
           bash tests/avvia-stack.sh
           bash tests/iso-config.sh
+          bash tests/prepara-iso.sh
 
       - name: Check Just Syntax
         shell: bash
