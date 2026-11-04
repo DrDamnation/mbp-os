@@ -14,6 +14,7 @@ param(
     [Parameter(Mandatory = $true)][string]$Seriale
 )
 $ErrorActionPreference = 'Stop'
+trap { Write-Host "ERRORE: $($_.Exception.Message) (riga $($_.InvocationInfo.ScriptLineNumber))"; exit 1 }
 
 $Iso = (Resolve-Path -LiteralPath $Iso).Path
 $dimIso = (Get-Item -LiteralPath $Iso).Length
@@ -40,10 +41,13 @@ if (-not $PSCmdlet.ShouldProcess($descr, "Cancellare tutto e scrivere la ISO")) 
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) {
     $log = Join-Path $env:TEMP 'scrivi-chiavetta.log'
-    $argomenti = "-NoProfile -ExecutionPolicy Bypass -Command `"& '$PSCommandPath' -Iso '$Iso' -Seriale '$Seriale' -Confirm:`$false *>&1 | Tee-Object -FilePath '$log'; exit `$LASTEXITCODE`""
+    $argomenti = "-NoProfile -ExecutionPolicy Bypass -Command `"& '$PSCommandPath' -Iso '$Iso' -Seriale '$Seriale' -Confirm:`$false *>&1 | Tee-Object -FilePath '$log'; if (-not `$?) { exit 1 }; exit `$LASTEXITCODE`""
+    Remove-Item $log -ErrorAction SilentlyContinue
     $p = Start-Process pwsh -Verb RunAs -ArgumentList $argomenti -Wait -PassThru
-    if (Test-Path $log) { Get-Content $log | Write-Host }
-    exit $p.ExitCode
+    $testo = if (Test-Path $log) { Get-Content $log -Raw } else { '' }
+    Write-Host $testo
+    # Il codice d'uscita attraverso RunAs+Tee non è affidabile: conta solo la riga finale di successo
+    if ($testo -match 'OK: chiavetta scritta e verificata') { exit 0 } else { Write-Host 'ERRORE: scrittura non completata'; exit 1 }
 }
 
 $n = $disco.Number
@@ -52,7 +56,8 @@ Write-Host "sha256 ISO: $hashIso"
 
 # Niente volumi montati sopra mentre si scrive
 if ($disco.PartitionStyle -ne 'RAW') { Clear-Disk -Number $n -RemoveData -RemoveOEM -Confirm:$false }
-Set-Disk -Number $n -IsOffline $true
+# Offline se possibile (le chiavette rimovibili non lo permettono: partono RAW, quindi niente volumi montati)
+try { Set-Disk -Number $n -IsOffline $true -ErrorAction Stop; $offline = $true } catch { $offline = $false }
 
 $blocco = 4MB
 $buf = New-Object byte[] $blocco
@@ -77,17 +82,17 @@ $rd = New-Object IO.FileStream("\\.\PhysicalDrive$n", [IO.FileMode]::Open, [IO.F
 try {
     $resto = $dimIso
     while ($resto -gt 0) {
-        $chiedi = [int][Math]::Min($blocco, [Math]::Ceiling($resto / 512) * 512)
+        $chiedi = if ($resto -ge $blocco) { $blocco } else { [int]([Math]::Ceiling($resto / 512) * 512) }
         $letti = $rd.Read($buf, 0, $chiedi)
         if ($letti -le 0) { throw "Rilettura interrotta a $($dimIso - $resto) byte" }
-        $usa = [int][Math]::Min($letti, $resto)
+        $usa = if ($letti -lt $resto) { $letti } else { [int]$resto }
         [void]$sha.TransformBlock($buf, 0, $usa, $null, 0)
         $resto -= $usa
     }
     [void]$sha.TransformFinalBlock($buf, 0, 0)
 } finally { $rd.Close() }
 $hashChiavetta = ([BitConverter]::ToString($sha.Hash)).Replace('-', '')
-Set-Disk -Number $n -IsOffline $false
+if ($offline) { Set-Disk -Number $n -IsOffline $false }
 
 Write-Host "sha256 chiavetta: $hashChiavetta"
 if ($hashChiavetta -ne $hashIso) { Write-Host "ERRORE: la chiavetta NON corrisponde alla ISO"; exit 1 }
