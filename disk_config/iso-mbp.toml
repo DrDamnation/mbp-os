@@ -1,0 +1,85 @@
+# ISO d'installazione mbp-os: AUTOMATICA, nessuna domanda a schermo.
+# Sicurezze: parte solo sul MacBookPro10,2 e solo se trova UN disco "APPLE SSD SM256E"
+# (la chiavetta USB, qualunque nome abbia, non viene mai toccata).
+# Nessun segreto: accesso solo con la chiave SSH pubblica, password bloccate.
+# Il profilo Wi-Fi (segreto) NON è qui: lo aggiunge tools/prepara-iso.sh in locale
+# nella cartella mbp-os/ della chiavetta, e il %post --nochroot lo copia.
+[customizations.installer.kickstart]
+contents = """
+%pre --erroronfail --log=/tmp/mbp-os-pre.log
+prodotto=$(cat /sys/class/dmi/id/product_name 2>/dev/null)
+trovati=""
+for b in /sys/block/sd* /sys/block/nvme*; do
+    [ -e "$b/device/model" ] || continue
+    m=$(cat "$b/device/model" | xargs)
+    [ "$m" = "APPLE SSD SM256E" ] && trovati="$trovati ${b##*/}"
+done
+set -- $trovati
+if [ "$prodotto" != "MacBookPro10,2" ] || [ $# -ne 1 ]; then
+    echo "mbp-os: QUESTA NON E' LA MACCHINA GIUSTA (prodotto='$prodotto' dischi APPLE SSD SM256E:'$trovati'). Non installo nulla." > /dev/tty1
+    sleep 600
+    exit 1
+fi
+disco=$1
+cat > /tmp/disco.ks <<EOF
+ignoredisk --only-use=$disco
+clearpart --all --initlabel --drives=$disco --disklabel=gpt
+autopart --noswap --type=plain --fstype=btrfs
+EOF
+%end
+
+text
+lang it_IT.UTF-8
+keyboard it
+timezone Europe/Rome --utc
+%include /tmp/disco.ks
+rootpw --lock
+reboot --eject
+
+%post --nochroot --log=/mnt/sysimage/root/mbp-os-post-chiavetta.log
+# File locali aggiunti alla chiavetta da tools/prepara-iso.sh (se ci sono)
+src=/run/install/repo/mbp-os
+if [ -s "$src/wifi.nmconnection" ]; then
+    install -d -m 700 /mnt/sysimage/etc/NetworkManager/system-connections
+    install -m 600 -o root -g root "$src/wifi.nmconnection" /mnt/sysimage/etc/NetworkManager/system-connections/casa.nmconnection
+    echo "profilo Wi-Fi copiato"
+else
+    echo "nessun profilo Wi-Fi sulla chiavetta"
+fi
+if [ -s "$src/authorized_keys.extra" ]; then
+    install -D -m 600 "$src/authorized_keys.extra" /mnt/sysimage/var/tmp/mbp-os-chiavi-extra
+fi
+%end
+
+%post --log=/root/mbp-os-post.log
+mkdir -p /var/home /var/roothome
+# Prima di tutto la chiave per root: accesso garantito anche se il resto fallisce.
+install -d -m 700 /var/roothome/.ssh
+echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILSgnGqraMQ8+DyAZzPB9Nkz5zhgqHdPNMeUq1Ohd3df' > /var/roothome/.ssh/authorized_keys
+[ -s /var/tmp/mbp-os-chiavi-extra ] && cat /var/tmp/mbp-os-chiavi-extra >> /var/roothome/.ssh/authorized_keys
+chmod 600 /var/roothome/.ssh/authorized_keys
+restorecon -R /var/roothome 2>/dev/null || true
+# Utente creato qui e non con "user"/"sshkey": wheel e users stanno in /usr/lib/group
+# (nss-altfiles) e l'installer non li vede (lezione nas-os: "user daniele does not exist").
+for g in wheel users; do
+    grep -q "^$g:" /etc/group || grep "^$g:" /usr/lib/group >> /etc/group
+done
+id daniele >/dev/null 2>&1 || useradd -m -d /var/home/daniele -g users -G wheel daniele
+passwd -l daniele
+install -d -m 700 -o daniele -g users /var/home/daniele/.ssh
+echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILSgnGqraMQ8+DyAZzPB9Nkz5zhgqHdPNMeUq1Ohd3df' > /var/home/daniele/.ssh/authorized_keys
+[ -s /var/tmp/mbp-os-chiavi-extra ] && cat /var/tmp/mbp-os-chiavi-extra >> /var/home/daniele/.ssh/authorized_keys
+rm -f /var/tmp/mbp-os-chiavi-extra
+chown daniele:users /var/home/daniele/.ssh/authorized_keys
+chmod 600 /var/home/daniele/.ssh/authorized_keys
+restorecon -R /var/home/daniele 2>/dev/null || true
+echo 'daniele ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/90-daniele
+chmod 440 /etc/sudoers.d/90-daniele
+echo macbook-linux > /etc/hostname
+# Modo iniziale: server (il Mac nasce senza monitor)
+mkdir -p /etc/mbp-os
+echo 'MODO=server' > /etc/mbp-os/mbp.conf
+id daniele
+bootc switch --mutate-in-place --enforce-container-sigpolicy --transport registry ghcr.io/drdamnation/mbp-os:stable
+%end
+"""

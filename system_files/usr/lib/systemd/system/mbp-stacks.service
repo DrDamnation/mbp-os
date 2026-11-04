@@ -1,0 +1,13 @@
+[Unit]
+Description=mbp-os: avvia gli stack Docker (solo in modo server)
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/mbp-os/avvia-stack
+
+[Install]
+WantedBy=multi-user.target

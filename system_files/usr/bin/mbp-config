@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Config personali dal repo privato DrDamnation/mbp-config.
+#   mbp-config chiave     crea la deploy key (sola lettura) e la mostra da aggiungere su GitHub
+#   mbp-config [aggiorna] clona o aggiorna ~/mbp-config ed esegue il suo applica.sh
+set -euo pipefail
+
+URL=${MBP_CONFIG_URL:-git@github-mbp-config:DrDamnation/mbp-config.git}
+DIR=${MBP_CONFIG_DIR:-$HOME/mbp-config}
+KEY=$HOME/.ssh/mbp-config
+
+die() { echo "mbp-config: $*" >&2; exit "${2:-1}"; }
+
+chiave() {
+    mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+    [[ -f $KEY ]] || ssh-keygen -q -t ed25519 -N '' -C "mbp-config@$(hostname 2>/dev/null || echo mbp)" -f "$KEY"
+    if ! grep -qx 'Host github-mbp-config' "$HOME/.ssh/config" 2>/dev/null; then
+        printf '\nHost github-mbp-config\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/mbp-config\n    IdentitiesOnly yes\n' >> "$HOME/.ssh/config"
+        chmod 600 "$HOME/.ssh/config"
+    fi
+    echo "Aggiungi questa chiave su GitHub > mbp-config > Settings > Deploy keys (sola lettura):"
+    cat "$KEY.pub"
+}
+
+aggiorna() {
+    if [[ -d $DIR/.git ]]; then
+        git -C "$DIR" pull -q --ff-only || die "pull fallito in $DIR (modifiche locali?)"
+    else
+        git clone -q "$URL" "$DIR" 2>/dev/null \
+            || die "non riesco a scaricare $URL. Chiave non ancora aggiunta su GitHub? Esegui: mbp-config chiave"
+    fi
+    if [[ -x $DIR/applica.sh ]]; then "$DIR/applica.sh"; fi
+    echo "mbp-config aggiornato in $DIR"
+}
+
+case ${1:-aggiorna} in
+    chiave) chiave ;;
+    aggiorna) aggiorna ;;
+    *) die "uso: mbp-config [aggiorna|chiave]" 2 ;;
+esac

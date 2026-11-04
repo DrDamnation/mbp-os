@@ -1,0 +1,12 @@
+[terminal]
+vt = 1
+
+# Modo pc: login automatico di daniele sull'HDMI
+[initial_session]
+command = "niri-session"
+user = "daniele"
+
+# Dopo un logout: schermata di login
+[default_session]
+command = "/usr/bin/dms-greeter --command niri"
+user = "greeter"

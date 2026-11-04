@@ -1,0 +1,12 @@
+# Segreti: mai nel repo. In locale stanno in Documentsmbp-os-secrets
+.env
+*.env
+!*.env.example
+!image-template.env
+secrets/
+*.key
+*.pem
+auth.json
+id_*
+!id_*.pub
+.secrets-scan-extra

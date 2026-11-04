@@ -1,0 +1,16 @@
+#!/bin/bash
+# Generatore systemd: a ogni avvio sceglie il target in base al modo.
+#   pc     -> graphical.target (greetd sull'HDMI); Docker e stack mascherati
+#   server -> multi-user.target (niente grafica); Docker e stack attivi
+# Scrive nella cartella "early" (vince su /etc). Non deve MAI fallire: in dubbio, server.
+early=${2:-/run/systemd/generator.early}
+unit=${MBP_UNITDIR:-/usr/lib/systemd/system}
+modo=$(${MBP_MODO:-/usr/libexec/mbp-os/modo} leggi 2>/dev/null) || modo=server
+mkdir -p "$early" 2>/dev/null || exit 0
+if [[ $modo == pc ]]; then
+    ln -sf "$unit/graphical.target" "$early/default.target"
+    for u in docker.service docker.socket mbp-stacks.service; do ln -sf /dev/null "$early/$u"; done
+else
+    ln -sf "$unit/multi-user.target" "$early/default.target"
+fi
+exit 0

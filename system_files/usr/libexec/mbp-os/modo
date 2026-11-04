@@ -1,0 +1,34 @@
+#!/bin/bash
+# Modo del Mac: pc (desktop sull'HDMI) o server (senza grafica, stack Docker).
+#   modo leggi              stampa pc|server (file mancante o valore strano = server)
+#   modo imposta pc|server  riscrive MODO= lasciando intatte le altre righe
+set -u
+conf=${MBP_CONF:-/etc/mbp-os/mbp.conf}
+
+leggi() {
+    local v=""
+    if [[ -r $conf ]]; then
+        v=$(sed -n 's/\r$//; s/#.*//; s/^[[:space:]]*MODO[[:space:]]*=[[:space:]]*//p' "$conf" | tail -1 | xargs)
+    fi
+    case $v in
+        pc|server) echo "$v" ;;
+        "") echo server ;;
+        *) echo "modo: valore '$v' non valido in $conf, uso server" >&2; echo server ;;
+    esac
+}
+
+imposta() {
+    case ${1:-} in pc|server) ;; *) echo "uso: modo imposta pc|server" >&2; exit 2 ;; esac
+    local tmp
+    tmp=$(mktemp "${conf}.XXXX" 2>/dev/null || mktemp)
+    if [[ -f $conf ]]; then grep -v '^[[:space:]]*MODO[[:space:]]*=' "$conf" | sed 's/\r$//' > "$tmp"; fi
+    echo "MODO=$1" >> "$tmp"
+    chmod 644 "$tmp"
+    mv -f "$tmp" "$conf"
+}
+
+case ${1:-leggi} in
+    leggi) leggi ;;
+    imposta) imposta "${2:-}" ;;
+    *) echo "uso: modo [leggi|imposta pc|server]" >&2; exit 2 ;;
+esac

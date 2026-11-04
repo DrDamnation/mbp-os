@@ -1,0 +1,27 @@
+#!/bin/bash
+# Avvia gli stack Docker elencati in /etc/mbp-os/stacks.conf (una cartella per riga, # = commento).
+# Uno stack rotto non ferma gli altri. Senza elenco non fa niente.
+set -u
+conf=${1:-/etc/mbp-os/stacks.conf}
+docker=${DOCKER:-docker}
+
+if [[ ! -f $conf ]]; then
+    echo "avvia-stack: $conf non esiste, nessuno stack da avviare"
+    exit 0
+fi
+
+ok=0 falliti=()
+while IFS= read -r riga || [[ -n $riga ]]; do
+    riga=${riga%%#*}
+    riga=$(echo "$riga" | xargs)
+    [[ -z $riga ]] && continue
+    if [[ -d $riga ]] && (cd "$riga" && "$docker" compose up -d); then
+        ok=$((ok + 1))
+    else
+        falliti+=("$riga")
+    fi
+done < "$conf"
+
+echo "avvia-stack: OK $ok / FALLITI ${#falliti[@]}"
+for f in "${falliti[@]}"; do echo "  fallito: $f"; done
+(( ${#falliti[@]} == 0 ))
