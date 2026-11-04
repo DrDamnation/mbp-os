@@ -24,7 +24,7 @@ disco=$1
 cat > /tmp/disco.ks <<EOF
 ignoredisk --only-use=$disco
 clearpart --all --initlabel --drives=$disco --disklabel=gpt
-autopart --noswap --type=plain --fstype=xfs
+autopart --noswap --nohome --type=plain --fstype=xfs
 EOF
 %end
 
@@ -36,18 +36,34 @@ timezone Europe/Rome --utc
 rootpw --lock
 reboot --eject
 
-%post --nochroot --log=/mnt/sysimage/root/mbp-os-post-chiavetta.log
-# File locali aggiunti alla chiavetta da tools/prepara-iso.sh (se ci sono)
+%post --nochroot --log=/tmp/mbp-os-post-chiavetta.log
+# File locali aggiunti alla chiavetta da tools/prepara-iso.sh (se ci sono).
+# Qui "install" non esiste e /mnt/sysimage può essere la radice fisica: si cerca il deployment ostree.
 src=/run/install/repo/mbp-os
-if [ -s "$src/wifi.nmconnection" ]; then
-    install -d -m 700 /mnt/sysimage/etc/NetworkManager/system-connections
-    install -m 600 -o root -g root "$src/wifi.nmconnection" /mnt/sysimage/etc/NetworkManager/system-connections/casa.nmconnection
-    echo "profilo Wi-Fi copiato"
+if [ -d /mnt/sysimage/usr/lib/systemd ]; then
+    dep=/mnt/sysimage
 else
-    echo "nessun profilo Wi-Fi sulla chiavetta"
+    dep=$(ls -d /mnt/sysimage/ostree/deploy/*/deploy/*.0 2>/dev/null | head -1)
 fi
-if [ -s "$src/authorized_keys.extra" ]; then
-    install -D -m 600 "$src/authorized_keys.extra" /mnt/sysimage/var/tmp/mbp-os-chiavi-extra
+echo "deployment: $dep"
+if [ -z "$dep" ] || [ ! -d "$dep/etc" ]; then
+    echo "ERRORE: deployment non trovato"; ls -la /mnt/sysimage /mnt/sysroot 2>&1
+else
+    if [ -s "$src/wifi.nmconnection" ]; then
+        nm="$dep/etc/NetworkManager/system-connections"
+        mkdir -p "$nm" && chmod 700 "$nm"
+        if cp "$src/wifi.nmconnection" "$nm/casa.nmconnection" && chown 0:0 "$nm/casa.nmconnection" && chmod 600 "$nm/casa.nmconnection"; then
+            echo "profilo Wi-Fi copiato in $nm"
+        else
+            echo "ERRORE: profilo Wi-Fi NON copiato"
+        fi
+    else
+        echo "nessun profilo Wi-Fi sulla chiavetta"
+    fi
+    if [ -s "$src/authorized_keys.extra" ]; then
+        cp "$src/authorized_keys.extra" "$dep/etc/mbp-os-chiavi-extra" && chmod 600 "$dep/etc/mbp-os-chiavi-extra" && echo "chiavi extra copiate"
+    fi
+    mkdir -p "$dep/etc/mbp-os" && cp /tmp/mbp-os-post-chiavetta.log "$dep/etc/mbp-os/installazione-chiavetta.log"
 fi
 %end
 
@@ -56,7 +72,7 @@ mkdir -p /var/home /var/roothome
 # Prima di tutto la chiave per root: accesso garantito anche se il resto fallisce.
 install -d -m 700 /var/roothome/.ssh
 echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILSgnGqraMQ8+DyAZzPB9Nkz5zhgqHdPNMeUq1Ohd3df' > /var/roothome/.ssh/authorized_keys
-[ -s /var/tmp/mbp-os-chiavi-extra ] && cat /var/tmp/mbp-os-chiavi-extra >> /var/roothome/.ssh/authorized_keys
+[ -s /etc/mbp-os-chiavi-extra ] && cat /etc/mbp-os-chiavi-extra >> /var/roothome/.ssh/authorized_keys
 chmod 600 /var/roothome/.ssh/authorized_keys
 restorecon -R /var/roothome 2>/dev/null || true
 # Utente creato qui e non con "user"/"sshkey": wheel e users stanno in /usr/lib/group
@@ -68,8 +84,8 @@ id daniele >/dev/null 2>&1 || useradd -m -d /var/home/daniele -g users -G wheel 
 passwd -l daniele
 install -d -m 700 -o daniele -g users /var/home/daniele/.ssh
 echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILSgnGqraMQ8+DyAZzPB9Nkz5zhgqHdPNMeUq1Ohd3df' > /var/home/daniele/.ssh/authorized_keys
-[ -s /var/tmp/mbp-os-chiavi-extra ] && cat /var/tmp/mbp-os-chiavi-extra >> /var/home/daniele/.ssh/authorized_keys
-rm -f /var/tmp/mbp-os-chiavi-extra
+[ -s /etc/mbp-os-chiavi-extra ] && cat /etc/mbp-os-chiavi-extra >> /var/home/daniele/.ssh/authorized_keys
+rm -f /etc/mbp-os-chiavi-extra
 chown daniele:users /var/home/daniele/.ssh/authorized_keys
 chmod 600 /var/home/daniele/.ssh/authorized_keys
 restorecon -R /var/home/daniele 2>/dev/null || true

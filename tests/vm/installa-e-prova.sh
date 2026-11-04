@@ -50,7 +50,7 @@ diagnosi() {  # legge dal disco della VM (spenta) journal e log dell'installazio
         for p in "$dev"p*; do
             mkdir -p "$m"; sudo mount -o ro "$p" "$m" 2>/dev/null || continue
             echo; echo "########## $p"; sudo ls "$m"
-            sudo find "$m" -maxdepth 4 \( -name 'mbp-os-post*.log' -o -name 'fstab' -o -path '*loader/entries/*.conf' \) 2>/dev/null |
+            sudo find "$m" -maxdepth 8 \( -name 'mbp-os-post*.log' -o -name 'installazione-chiavetta.log' -o -name 'fstab' -o -path '*loader/entries/*.conf' \) 2>/dev/null |
                 while read -r f; do echo "----- $f"; sudo cat "$f"; done
             for j in $(sudo find "$m" -maxdepth 6 -type d -path '*/var/log/journal' 2>/dev/null); do
                 echo "----- journal $j"

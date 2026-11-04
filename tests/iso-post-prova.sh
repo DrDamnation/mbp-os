@@ -13,7 +13,7 @@ PY
 )
 sudo podman run --rm -i "$IMG" bash -s <<SCRIPT
 rm -rf /var/home /var/roothome  # come all'installazione: non esistono ancora
-echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIProvaChiaveExtraSoloPerIlTest prova' > /var/tmp/mbp-os-chiavi-extra
+echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIProvaChiaveExtraSoloPerIlTest prova' > /etc/mbp-os-chiavi-extra
 $post
 echo "== verifica"
 set -e
@@ -24,7 +24,7 @@ test -s /var/home/daniele/.ssh/authorized_keys
 [ "\$(stat -c %U /var/home/daniele/.ssh/authorized_keys)" = daniele ]
 grep -q ProvaChiaveExtra /var/home/daniele/.ssh/authorized_keys
 grep -q ProvaChiaveExtra /var/roothome/.ssh/authorized_keys
-test ! -e /var/tmp/mbp-os-chiavi-extra
+test ! -e /etc/mbp-os-chiavi-extra
 test -s /etc/sudoers.d/90-daniele
 [ "\$(cat /etc/hostname)" = macbook-linux ]
 [ "\$(/usr/libexec/mbp-os/modo leggi)" = server ]
