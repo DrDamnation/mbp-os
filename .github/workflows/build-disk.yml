@@ -121,6 +121,9 @@ jobs:
   prova-vm:
     needs: build
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/iso-vm.yml
     with:
       run_id: ${{ github.run_id }}
