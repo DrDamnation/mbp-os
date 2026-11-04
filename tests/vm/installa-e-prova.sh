@@ -108,6 +108,7 @@ v() { S daniele@127.0.0.1 "$1" 2>/dev/null; }
 check "modo server" bash -c "[ \"\$(ssh -i '$W/chiave' -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null daniele@127.0.0.1 /usr/libexec/mbp-os/modo leggi)\" = server ]"
 check "target multi-user" bash -c "ssh -i '$W/chiave' -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null daniele@127.0.0.1 systemctl get-default | grep -qx multi-user.target"
 check "profilo Wi-Fi 600 root" bash -c "ssh -i '$W/chiave' -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null daniele@127.0.0.1 sudo stat -c '%a %U' /etc/NetworkManager/system-connections/casa.nmconnection | grep -qx '600 root'"
+echo "--- dettagli Wi-Fi"; v 'sudo cat /etc/mbp-os/installazione-chiavetta.log; sudo ls -la /etc/NetworkManager/system-connections/; sudo cat /var/roothome/mbp-os-post.log 2>/dev/null | tail -20'
 check "karg video=eDP-1:d" v 'grep -q "video=eDP-1:d" /proc/cmdline'
 check "mai nomodeset" v '! grep -q nomodeset /proc/cmdline'
 check "segue l'immagine firmata" v 'sudo bootc status --format json | grep -q "ghcr.io/drdamnation/mbp-os:stable"'
@@ -118,8 +119,10 @@ section "Modo pc"
 v 'ujust modo pc </dev/null' >/dev/null; v 'sudo systemctl reboot' || true; sleep 20
 check "torna su SSH" aspetta_ssh 300
 check "target grafico" v 'systemctl get-default | grep -qx graphical.target'
-check "docker mascherato" v '[ "$(systemctl is-enabled docker.service)" = masked ]'
-check "stack mascherati" v '[ "$(systemctl is-enabled mbp-stacks.service)" = masked ]'
+echo "--- dettagli modo pc"; v 'for u in docker.service docker.socket mbp-stacks.service; do echo "$u: enabled=$(systemctl is-enabled $u) active=$(systemctl is-active $u) $(systemctl show -p LoadState -p FragmentPath $u | tr "
+" " ")"; done; ls -la /run/systemd/generator.early/ 2>&1 | head -20'
+check "docker mascherato e fermo" v '[ "$(systemctl show -P LoadState docker.service)" = masked ] && ! systemctl is-active -q docker.service'
+check "stack mascherati e fermi" v '[ "$(systemctl show -P LoadState mbp-stacks.service)" = masked ] && ! systemctl is-active -q mbp-stacks.service'
 check "greetd partito" v 'systemctl is-active greetd.service'
 check "SSH ancora attivo in modo pc" v true
 v 'ujust modo server </dev/null' >/dev/null; v 'sudo systemctl reboot' || true; sleep 20
