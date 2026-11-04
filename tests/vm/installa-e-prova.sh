@@ -40,14 +40,44 @@ aspetta_ssh() {  # aspetta_ssh <secondi>
     local fine=$((SECONDS + $1))
     until S daniele@127.0.0.1 true 2>/dev/null; do (( SECONDS > fine )) && return 1; sleep 5; done
 }
+diagnosi() {  # legge dal disco della VM (spenta) journal e log dell'installazione
+    local out=$W/diagnosi.txt m=$W/mnt dev
+    pkill -f qemu-system-x86_64 2>/dev/null; sleep 3
+    dev=$(sudo losetup -fP --show "$W/mac.img") || return 0
+    sudo partprobe "$dev" 2>/dev/null; sleep 2
+    {
+        echo "### partizioni"; sudo lsblk -f "$dev"
+        for p in "$dev"p*; do
+            mkdir -p "$m"; sudo mount -o ro "$p" "$m" 2>/dev/null || continue
+            echo; echo "########## $p"; sudo ls "$m"
+            sudo find "$m" -maxdepth 4 \( -name 'mbp-os-post*.log' -o -name 'fstab' -o -path '*loader/entries/*.conf' \) 2>/dev/null |
+                while read -r f; do echo "----- $f"; sudo cat "$f"; done
+            for j in $(sudo find "$m" -maxdepth 6 -type d -path '*/var/log/journal' 2>/dev/null); do
+                echo "----- journal $j"
+                sudo journalctl --directory "$j" -b -1 --no-pager -p warning 2>/dev/null | tail -150
+                sudo journalctl --directory "$j" --no-pager -o short-monotonic 2>/dev/null | grep -iE 'fail|emergency|error|mount|dependency' | tail -150
+            done
+            for a in $(sudo find "$m" -maxdepth 6 -type d -path '*/var/log/anaconda' 2>/dev/null); do
+                echo "----- anaconda $a"; sudo tail -80 "$a/journal.log" "$a/program.log" "$a/storage.log" 2>/dev/null
+            done
+            sudo umount "$m"
+        done
+    } > "$out" 2>&1
+    sudo losetup -d "$dev"
+    echo "diagnosi scritta in $out ($(wc -l < "$out") righe)"
+}
 gpt_vuoto() { [[ $(dd if="$1" bs=1 skip=512 count=8 2>/dev/null) != "EFI PART" ]]; }
 
+if [[ ${SALTA_DISCO_SBAGLIATO:-0} == 1 ]]; then
+    echo "ATTENZIONE: controllo disco sbagliato saltato (solo per i giri di diagnosi)"
+else
 section "Disco sbagliato: l'installazione non deve toccare niente"
 truncate -s 64G "$W/altro.img"; cp "$OVMF_VARS" "$W/vars.fd"
 vm "$W/altro.img" "Samsung SSD 860" 1 & q=$!
 sleep 600; foto disco-sbagliato; kill "$q" 2>/dev/null || true; wait "$q" 2>/dev/null || true
 check "disco di un altro modello lasciato vuoto" gpt_vuoto "$W/altro.img"
 rm -f "$W/altro.img"
+fi
 
 pkill -f qemu-system-x86_64 2>/dev/null; sleep 2
 section "Installazione automatica"
@@ -66,6 +96,10 @@ section "Primo avvio dal disco"
 vm "$W/mac.img" "APPLE SSD SM256E" 0 & q=$!
 trap 'foto ultimo-schermo; kill $q 2>/dev/null || true' EXIT
 check "SSH come daniele con la chiave (entro 10 min)" aspetta_ssh 600
+if (( _AIR_FAIL > 0 )) && ! S daniele@127.0.0.1 true 2>/dev/null; then
+    foto ultimo-schermo; trap - EXIT; diagnosi
+    echo "Il sistema installato non risponde: inutile proseguire, vedi diagnosi.txt"; finish; exit 1
+fi
 check "SSH come root con la chiave" S root@127.0.0.1 true
 check "sudo senza password" S daniele@127.0.0.1 sudo -n true
 check "SSH con password rifiutato" bash -c "! ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no -o PreferredAuthentications=password,keyboard-interactive -o BatchMode=yes -o ConnectTimeout=5 daniele@127.0.0.1 true"

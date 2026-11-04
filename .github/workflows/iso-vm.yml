@@ -13,6 +13,10 @@ on:
         description: "Run di build-disk con l'artefatto ISO"
         type: string
         required: true
+      salta_disco_sbagliato:
+        description: "Solo diagnosi: salta il controllo del disco sbagliato"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -36,11 +40,15 @@ jobs:
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
           sudo apt-get update -q && sudo apt-get install -y -q qemu-system-x86 ovmf socat
       - name: Installa e prova
+        env:
+          SALTA_DISCO_SBAGLIATO: ${{ inputs.salta_disco_sbagliato && '1' || '0' }}
         run: bash tests/vm/installa-e-prova.sh "$(find iso -name '*.iso' | head -1)"
       - name: Schermate
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: schermate-vm
-          path: vm-prova/*.ppm
+          path: |
+            vm-prova/*.ppm
+            vm-prova/diagnosi.txt
           if-no-files-found: ignore
