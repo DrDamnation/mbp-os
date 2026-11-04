@@ -24,7 +24,8 @@ cp "$iso" "$lav/in.iso"
 ct=${CONTAINER:-$(command -v podman >/dev/null && echo podman || echo docker)}
 MSYS_NO_PATHCONV=1 "$ct" run --rm --privileged -v "$lav:/lav" registry.fedoraproject.org/fedora:44 bash -euc '
     dnf -y -q install lorax xorriso >/dev/null
-    mkksiso -a /lav/mbp-os /lav/in.iso /lav/out.iso
+    # --skip-mkefiboot: il boot non cambia (aggiungiamo solo una cartella) e niente loop device
+    mkksiso --skip-mkefiboot -a /lav/mbp-os /lav/in.iso /lav/out.iso
     xorriso -indev /lav/out.iso -find /mbp-os -type f 2>/dev/null | grep -q wifi.nmconnection
 '
 mv "$lav/out.iso" "$out"
