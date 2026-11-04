@@ -31,7 +31,7 @@ vm() {  # vm <disco> <modello> <con-chiavetta 0/1> [altri argomenti qemu]
         a+=(-device qemu-xhci -drive id=usb,file=$W/chiavetta.iso,if=none,format=raw,readonly=on
             -device usb-storage,drive=usb,removable=on,bootindex=0 -no-reboot)
     fi
-    qemu-system-x86_64 "${a[@]}" "$@"
+    exec qemu-system-x86_64 "${a[@]}" "$@"
 }
 foto() { echo "screendump $W/$1.ppm" | socat - "UNIX-CONNECT:$W/mon.sock" >/dev/null 2>&1 || true; }
 S() { ssh -i "$W/chiave" -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=yes "$@"; }
@@ -48,6 +48,7 @@ sleep 600; foto disco-sbagliato; kill "$q" 2>/dev/null || true; wait "$q" 2>/dev
 check "disco di un altro modello lasciato vuoto" gpt_vuoto "$W/altro.img"
 rm -f "$W/altro.img"
 
+pkill -f qemu-system-x86_64 2>/dev/null; sleep 2
 section "Installazione automatica"
 truncate -s 64G "$W/mac.img"; cp "$OVMF_VARS" "$W/vars.fd"
 vm "$W/mac.img" "APPLE SSD SM256E" 1 & q=$!
@@ -59,6 +60,7 @@ done
 wait "$q" 2>/dev/null || true
 check "il disco ora ha una tabella GPT" ! gpt_vuoto "$W/mac.img"
 
+pkill -f qemu-system-x86_64 2>/dev/null; sleep 2
 section "Primo avvio dal disco"
 vm "$W/mac.img" "APPLE SSD SM256E" 0 & q=$!
 trap 'foto ultimo-schermo; kill $q 2>/dev/null || true' EXIT
