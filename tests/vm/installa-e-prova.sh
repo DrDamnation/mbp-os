@@ -107,7 +107,7 @@ check "hostname macbook-linux" bash -c "[ \"\$(ssh -i '$W/chiave' -p 2222 -o Str
 v() { S daniele@127.0.0.1 "$1" 2>/dev/null; }
 check "modo server" bash -c "[ \"\$(ssh -i '$W/chiave' -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null daniele@127.0.0.1 /usr/libexec/mbp-os/modo leggi)\" = server ]"
 check "target multi-user" bash -c "ssh -i '$W/chiave' -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null daniele@127.0.0.1 systemctl get-default | grep -qx multi-user.target"
-check "profilo Wi-Fi 600 root" bash -c "ssh -i '$W/chiave' -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null daniele@127.0.0.1 sudo stat -c '%a %U' /etc/NetworkManager/system-connections/casa.nmconnection | grep -qx '600 root'"
+check "profilo Wi-Fi 600 root" v '[ "$(sudo stat -c "%a %U" /etc/NetworkManager/system-connections/casa.nmconnection)" = "600 root" ]'
 echo "--- dettagli Wi-Fi"; v 'sudo cat /etc/mbp-os/installazione-chiavetta.log; sudo ls -la /etc/NetworkManager/system-connections/; sudo cat /var/roothome/mbp-os-post.log 2>/dev/null | tail -20'
 check "karg video=eDP-1:d" v 'grep -q "video=eDP-1:d" /proc/cmdline'
 check "mai nomodeset" v '! grep -q nomodeset /proc/cmdline'
