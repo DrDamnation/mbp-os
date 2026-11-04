@@ -25,7 +25,7 @@ section "Mac"
 check "wl per il kernel dell'immagine ($KVER)" modinfo -k "$KVER" wl
 check "karg video=eDP-1:d" grep -q 'video=eDP-1:d' /usr/lib/bootc/kargs.d/10-mbp.toml
 check "mai nomodeset" ! grep -rq nomodeset /usr/lib/bootc/kargs.d
-check "root btrfs" grep -q 'type = "btrfs"' /usr/lib/bootc/install/00-mbp.toml
+check "root xfs" grep -q 'type = "xfs"' /usr/lib/bootc/install/00-mbp.toml
 check "mbpfan presente" test -x /usr/sbin/mbpfan
 check "mbpfan abilitato" systemctl is-enabled mbpfan.service
 for v in 'low_temp = 55' 'high_temp = 65' 'max_temp = 84'; do

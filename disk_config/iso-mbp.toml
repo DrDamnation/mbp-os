@@ -24,7 +24,7 @@ disco=$1
 cat > /tmp/disco.ks <<EOF
 ignoredisk --only-use=$disco
 clearpart --all --initlabel --drives=$disco --disklabel=gpt
-autopart --noswap --type=plain --fstype=btrfs
+autopart --noswap --type=plain --fstype=xfs
 EOF
 %end
 

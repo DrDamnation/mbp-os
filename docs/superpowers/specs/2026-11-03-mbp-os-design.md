@@ -95,7 +95,7 @@ Scanner anti-segreti e dati personali **identico** a quello di air-os/nas-os (`t
 
 - Durante l'installazione Daniele può collegare un monitor HDMI: serve a vedere cosa succede, ma l'installazione resta senza domande.
 
-- ISO Anaconda dall'immagine (bootc-image-builder, runner `ubuntu-24.04`, rootfs btrfs dichiarato: lezioni air-os).
+- ISO Anaconda dall'immagine (bootc-image-builder, runner `ubuntu-24.04`, rootfs xfs dichiarato come nas-os: con btrfs Anaconda 44 rifiuta l'autopart plain, visto in VM il 2026-11-04).
 - Kickstart **completamente automatico**: disco interno intero, nessuna schermata. Protezione: il %pre controlla il modello DMI (`MacBookPro10,2`) e il disco atteso, altrimenti si ferma senza toccare niente.
 - Utente `daniele` e chiavi creati nel %post (lezione nas-os: gli utenti dell'immagine non sono visibili all'installer).
 - **Wi-Fi al primo avvio**: la password Wi-Fi non può stare nella ISO pubblica. *(Proposta Claude)* La ISO di CI non contiene la rete; il file NetworkManager con la password viene aggiunto localmente sul PC alla chiavetta (o alla ISO costruita in locale) da un file fuori git, e il %post lo copia. Ripiego: adattatore USB-Ethernet RTL8153 (se a portata il giorno dell'installazione; la via principale è il profilo Wi-Fi, che va quindi provato e la preparazione della chiavetta deve fallire in modo evidente se il profilo manca). Il builder sceglie il meccanismo, purché nessun segreto finisca in git o negli artefatti CI.

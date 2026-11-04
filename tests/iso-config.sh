@@ -11,7 +11,7 @@ check "sceglie il disco per modello" grep -q '"APPLE SSD SM256E"' "$K"
 check "si ferma se i dischi giusti non sono esattamente 1" grep -q '\[ \$# -ne 1 \]' "$K"
 check "disco incluso dal %pre" grep -qx '%include /tmp/disco.ks' "$K"
 check "nessun nome di disco fisso" ! grep -Eq '\b(sd[a-z]|nvme[0-9]n[0-9])\b' "$K"
-check "btrfs senza swap" grep -q 'autopart --noswap --type=plain --fstype=btrfs' "$K"
+check "xfs senza swap" grep -q 'autopart --noswap --type=plain --fstype=xfs' "$K"
 
 section "Macchina giusta"
 check "controlla il modello del Mac" grep -q '"MacBookPro10,2"' "$K"
