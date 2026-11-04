@@ -51,9 +51,13 @@ for u in docker.service tailscaled.service sshd.service mbp-stacks.service; do
     check "$u abilitato" systemctl is-enabled "$u"
 done
 check "repo tailscale spento" ! grep -q '^enabled=1' /etc/yum.repos.d/tailscale.repo
-check "sshd: niente password" bash -c 'sshd -T 2>/dev/null | grep -qx "passwordauthentication no"'
-check "sshd: niente keyboard-interactive" bash -c 'sshd -T 2>/dev/null | grep -qx "kbdinteractiveauthentication no"'
-check "sshd: root solo con chiave" bash -c 'sshd -T 2>/dev/null | grep -Eqx "permitrootlogin (without-password|prohibit-password)"'
+# sshd -T vuole una chiave host: nell'immagine non c'è ancora (si crea al primo avvio)
+hk=$(mktemp -u); ssh-keygen -q -t ed25519 -N '' -f "$hk" >/dev/null 2>&1
+sshd_t() { /usr/sbin/sshd -T -h "$hk" 2>/dev/null; }
+check "sshd: niente password" bash -c "$(declare -f sshd_t); hk=$hk; sshd_t | grep -qx 'passwordauthentication no'"
+check "sshd: niente keyboard-interactive" bash -c "$(declare -f sshd_t); hk=$hk; sshd_t | grep -qx 'kbdinteractiveauthentication no'"
+check "sshd: root solo con chiave" bash -c "$(declare -f sshd_t); hk=$hk; sshd_t | grep -Eqx 'permitrootlogin (without-password|prohibit-password)'"
+
 check "mbp-config" test -x /usr/bin/mbp-config
 
 section "Desktop"
