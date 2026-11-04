@@ -15,6 +15,7 @@ ssh-keygen -q -t ed25519 -N '' -f "$W/chiave" <<<y >/dev/null
 cp "$W/chiave.pub" "$W/sec/authorized_keys.extra"
 printf '[connection]\nid=casa\ntype=wifi\n\n[wifi]\nmode=infrastructure\nssid=prova-vm\n\n[wifi-security]\nkey-mgmt=wpa-psk\npsk=solo-per-la-prova-vm\n' > "$W/sec/wifi.nmconnection"
 tools/prepara-iso.sh "$ISO_CI" "$W/sec" "$W/chiavetta.iso"
+set +e  # da qui contano i check: un comando che fallisce non deve chiudere la prova
 
 vm() {  # vm <disco> <modello> <con-chiavetta 0/1> [altri argomenti qemu]
     local disco=$1 modello=$2 usb=$3; shift 3
